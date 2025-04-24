@@ -1,0 +1,8 @@
+# Исходим из того, что в вебе есть node_modules, build, .git и пр.
+
+node_modules
+build
+.git
+*.log
+.env
+.DS_Store
