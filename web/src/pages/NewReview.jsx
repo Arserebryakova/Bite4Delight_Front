@@ -1,58 +1,96 @@
 // src/pages/NewReview.jsx
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from "react";
 
 export default function NewReview() {
-  const places = [
-    'Покровский бульвар 11. Столовая',
-    'Покровский бульвар 11. Ресторан',
-    'Покровский бульвар 11. Груша',
-    'Покровский бульвар 11. Jeffrey\'s',
-    'Покровский бульвар 11. "Стекляшка"',
-    'Покровский бульвар 11. Вендинги'
-  ];
+  const [places, setPlaces] = useState([]);
 
   const [form, setForm] = useState({
-    place: '',
-    title: '',
-    content: '',
-    rating: 5
+    place: "",
+    title: "",
+    content: "",
+    rating: 5,
   });
   const [suggestions, setSuggestions] = useState([]);
   const [showSug, setShowSug] = useState(false);
   const wrapperRef = useRef(null);
 
-  // закрыть подсказки, если клик вне инпута/списка
+  // 1) Load all “Address. Place” entries from /api/locations
+  useEffect(() => {
+  fetch("/api/locations")
+    .then((res) => {
+      if (!res.ok) throw new Error("Failed to fetch locations");
+      return res.json();
+    })
+    .then((data) => {
+      console.log("Loaded locations:", data);
+      setPlaces(data);
+    })
+    .catch((err) => {
+      console.error("Error loading locations:", err);
+    });
+  }, []);
+
+  // 2) Close suggestions when clicking outside
   useEffect(() => {
     function handleClickOutside(e) {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
         setShowSug(false);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleChange = e => {
+  // 3) On any input change
+  const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-    if (name === 'place') {
+    setForm((prev) => ({ ...prev, [name]: value }));
+
+    if (name === "place") {
       const val = value.toLowerCase();
-      const filtered = places.filter(p =>
-        p.toLowerCase().includes(val) && p.toLowerCase() !== val
+      // filter for substring matches but exclude exact match
+      const filtered = places.filter(
+        (p) => p.toLowerCase().includes(val) && p.toLowerCase() !== val
       );
       setSuggestions(filtered);
-      setShowSug(!!filtered.length);
+      setShowSug(filtered.length > 0);
     }
   };
 
+  // 4) Selecting a suggestion
   const handlePlaceSelect = (place) => {
-    setForm(prev => ({ ...prev, place }));
+    setForm((prev) => ({ ...prev, place }));
     setShowSug(false);
   };
 
-  const handleSubmit = e => {
+  // 5) Submit form as before...
+  const handleSubmit = (e) => {
     e.preventDefault();
-    alert(JSON.stringify(form));
+    const payload = {
+      place: form.place,
+      title: form.title,
+      content: form.content,
+      rating: Number(form.rating),
+    };
+    fetch(`/api/reviews`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+      .then((res) => {
+        if (res.status === 201) return res.json();
+        return res.json().then((err) => {
+          throw new Error(err.error || "Failed to create review");
+        });
+      })
+      .then((data) => {
+        alert(`Review created with ID: ${data.id}`);
+        setForm({ place: "", title: "", content: "", rating: 5 });
+      })
+      .catch((err) => {
+        console.error("Error creating review:", err);
+        alert("Не удалось отправить отзыв: " + err.message);
+      });
   };
 
   const pct = (form.rating / 10) * 100;
@@ -63,6 +101,7 @@ export default function NewReview() {
       <h1 className="text-2xl font-bold text-text-primary dark:text-text-primary-dark mb-4">
         Новый отзыв
       </h1>
+
       <form className="space-y-4" onSubmit={handleSubmit}>
         {/* Place autocomplete */}
         <div className="relative" ref={wrapperRef}>
@@ -74,19 +113,29 @@ export default function NewReview() {
             name="place"
             value={form.place}
             onChange={handleChange}
-            onFocus={() => setShowSug(!!suggestions.length)}
+            onFocus={() => {
+				// show all places except if user has typed an exact match
+				const allExceptExact = places.filter(
+					(p) => p.toLowerCase() !== form.place.toLowerCase()
+				);
+				setSuggestions(allExceptExact);
+				setShowSug(allExceptExact.length > 0);
+			}}
             required
-            className="w-full mt-1 p-2 border rounded bg-inner-light dark:bg-inner-dark 
+            className="w-full mt-1 p-2 border rounded bg-inner-light dark:bg-inner-dark
                        text-text-primary dark:text-text-primary-dark"
             placeholder="Начните вводить..."
           />
-          {showSug && (
-            <ul className="absolute z-10 w-full bg-inner-light dark:bg-inner-dark border border-gray-300 dark:border-gray-600 rounded-md max-h-40 overflow-auto mt-1 shadow">
+          {showSug && suggestions.length > 0 && (
+            <ul className="absolute z-10 w-full bg-inner-light dark:bg-inner-dark
+                           border border-gray-300 dark:border-gray-600 rounded-md max-h-40
+                           overflow-auto mt-1 shadow">
               {suggestions.map((s, i) => (
                 <li
                   key={i}
                   onClick={() => handlePlaceSelect(s)}
-                  className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-text-primary dark:text-text-primary-dark"
+                  className="px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-700
+                             cursor-pointer text-text-primary dark:text-text-primary-dark"
                 >
                   {s}
                 </li>
@@ -94,6 +143,7 @@ export default function NewReview() {
             </ul>
           )}
         </div>
+
 
         {/* Title */}
         <div>
@@ -142,7 +192,7 @@ export default function NewReview() {
             onChange={handleChange}
             required
             className="w-full mt-1 rounded-lg appearance-none transition-all duration-300 ease-in-out"
-            style={{ '--fill': `${pct}%` }}
+            style={{ "--fill": `${pct}%` }}
           />
           <div className="flex justify-between text-sm mt-1 text-text-secondary dark:text-text-secondary-dark">
             {[...Array(11)].map((_, i) => (

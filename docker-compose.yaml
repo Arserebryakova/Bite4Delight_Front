@@ -1,7 +1,51 @@
+# docker-compose.yaml
+
 services:
+  db:
+    image: postgres:15-alpine
+    container_name: review-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - review_db_data:/var/lib/postgresql/data
+      - ./review-service/migrations:/docker-entrypoint-initdb.d
+
+  summarizer:
+    build:
+      context: ./summarizer
+      dockerfile: Dockerfile
+    container_name: summarizer
+    ports:
+      - "5000:5000"
+
+  review-service:
+    build:
+      context: ./review-service
+      dockerfile: Dockerfile
+    container_name: review-service
+    depends_on:
+      - db
+      - summarizer
+    environment:
+      SUMMARIZER_URL: http://summarizer:5000
+      POSTGRES_URL: postgres://postgres:postgres@db:5432/postgres?sslmode=disable
+    ports:
+      - "8080:8080"
+
   web:
     build:
       context: ./web
       dockerfile: Dockerfile
+    container_name: web
+    depends_on:
+      - review-service
     ports:
       - "3000:80"
+
+volumes:
+  review_db_data:

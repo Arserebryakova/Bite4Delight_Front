@@ -1,18 +1,49 @@
-import React from 'react';
-import ReviewCard from '../components/ReviewCard';
+// src/pages/Feed.jsx
+import React, { useState, useEffect } from 'react'
+import ReviewCard from '../components/ReviewCard'
 
 export default function Feed() {
-  const reviews = [
-    { id: 1, place: 'Cafeteria A', title: 'Cold Soup', content: 'Soup was cold and watery.', rating: 4, user: 'Alice', date: '2025-05-10',  },
-    { id: 2, place: 'Dining Hall B', title: 'Long Queue', content: 'Waited 30 minutes for lunch.', rating: 6, user: 'Bob', date: '2025-05-09' },
-  ];
+  const [reviews, setReviews] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  useEffect(() => {
+    fetch(`/api/reviews/?status=Принят`)
+      .then(res => {
+        if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`)
+        return res.json()
+      })
+      .then(data => {
+        // ожидаем, что бекенд отдаёт массив объектов { id, place, title, content, rating, user, date }
+        setReviews(data)
+      })
+      .catch(err => {
+        console.error('Error loading feed:', err)
+        setError(err)
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) return <p>Загрузка...</p>
+  if (error)   return <p>Ошибка: {error.message}</p>
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold text-text-primary dark:text-text-primary-dark mb-4">Feed</h1>
-      {reviews.map(r=>(
-        <ReviewCard key={r.id} {...r}/>
+    <div className="space-y-4">
+      <h1 className="text-2xl font-bold text-text-primary dark:text-text-primary-dark mb-4">
+        Лента
+      </h1>
+      {reviews.map(r => (
+        <ReviewCard
+          id={r.id}
+          place={r.place}
+          title={r.title}
+          content={r.content}
+          rating={r.rating}
+          user='Аноним'
+          created_at={r.created_at}
+		  status = {r.status}
+        />
       ))}
     </div>
-  );
+  )
 }

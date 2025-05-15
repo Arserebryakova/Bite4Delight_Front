@@ -1,42 +1,6 @@
 // src/pages/Moderation.jsx
-import React from 'react';
-import { Link } from 'react-router-dom';
-
-const reviews = [
-  {
-    id: 1,
-    place: 'Покровский бульвар 11. Столовая',
-    title: 'Холодный суп',
-    content:
-      'Суп оказался ледяным, пришлось подогревать дважды. Консистенция водянистая, вкус потерян.',
-    rating: 3,
-    user: 'Иван Иванов',
-    date: '31.08.2025 12:35',
-    status: 'На модерации',
-  },
-  {
-    id: 2,
-    place: 'Покровский бульвар 11. Ресторан',
-    title: 'Долго ждал',
-    content:
-      'Ожидание в очереди около часа, никто не извинился и не предложил ничего.',
-    rating: 2,
-    user: 'Мария Смирнова',
-    date: '30.08.2025 14:20',
-    status: 'Отклонен',
-  },
-  {
-    id: 3,
-    place: 'Покровский бульвар 11. Груша',
-    title: 'Вкусно и быстро',
-    content:
-      'Очень порадовал сервис — все быстро и вкусно, порции большие.',
-    rating: 9,
-    user: 'Пётр Сидоров',
-    date: '29.08.2025 18:10',
-    status: 'Принят',
-  },
-];
+import React, { useState, useEffect } from 'react'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 
 const StatusIcon = ({ status }) => {
     if (status === 'Принят') {
@@ -73,6 +37,41 @@ const StatusIcon = ({ status }) => {
   };
 
 export default function Moderation() {
+	const [reviews, setReviews]     = useState([])
+	const [loading, setLoading]     = useState(true)
+	const [error, setError]         = useState(null)
+	useEffect(() => {
+    fetch(
+      `/api/reviews/`
+    )
+      .then((res) => {
+        if (!res.ok) throw new Error(`Server returned ${res.status}`)
+        return res.json()
+      })
+      .then((data) => setReviews(data))
+      .catch((err) => {
+        console.error('Error loading moderation list:', err)
+        setError(err)
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <span className="text-gray-500 dark:text-gray-400">Загрузка...</span>
+      </div>
+    )
+  }
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <span className="text-red-600">Не удалось загрузить отзывы.</span>
+      </div>
+    )
+  }
+
+
   return (
     <div className="max-w-4xl mx-auto py-6 px-4 space-y-6">
       <h1 className="text-2xl md:text-3xl font-semibold text-text-primary dark:text-text-primary-dark">
